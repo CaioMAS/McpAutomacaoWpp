@@ -1,0 +1,41 @@
+import { z } from "zod";
+
+export const DateYMD = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
+
+export const AgendarSchema = z.object({
+  clienteNome: z.string().min(1, "clienteNome obrigatório"),
+  // aceita com ou sem "+", mas vamos normalizar para dígitos depois
+  clienteNumero: z
+    .string()
+    .regex(/^\+?\d{10,15}$/, "clienteNumero E.164 (ex: 5531987654321)"),
+  dataHora: z.string().datetime({ message: "dataHora deve ser ISO 8601" }),
+  chefeNome: z.string().default("Ezequias"),
+  cidadeOpcional: z.string().optional(),
+});
+
+export const BuscarPorDataSchema = z.object({
+  day: DateYMD,
+});
+
+export const BuscarPorPeriodoSchema = z.object({
+  start: DateYMD,
+  end: DateYMD,
+});
+
+export const AlterarDataSchema = z.object({
+  id: z.string().min(1, "id obrigatório"),
+  novaDataHora: z.string().datetime({ message: "novaDataHora deve ser ISO 8601" }),
+});
+
+export const DeletarSchema = z.object({
+  id: z.string().min(1, "id obrigatório"),
+});
+
+// Tipos inferidos (úteis nos handlers)
+export type AgendarInput = z.infer<typeof AgendarSchema>;
+export type BuscarPorDataInput = z.infer<typeof BuscarPorDataSchema>;
+export type BuscarPorPeriodoInput = z.infer<typeof BuscarPorPeriodoSchema>;
+export type AlterarDataInput = z.infer<typeof AlterarDataSchema>;
+export type DeletarInput = z.infer<typeof DeletarSchema>;
