@@ -7,9 +7,14 @@ function toOk(result: any) {
 function toErr(error: any) {
   return { ok: false, error };
 }
+
 import { BASE } from "./config";
 import { http } from "./utils/http";
-import { ensureFutureISO, ensureTZ, normalizePhone } from "./utils/normalize";
+
+// ⬇️ CHANGED: troque os imports de ensureTZ/ensureFutureISO
+// import { ensureFutureISO, ensureTZ, normalizePhone } from "./utils/normalize";
+import { toBackendLocalDateTime, ensureFutureLocal, normalizePhone } from "./utils/normalize";
+
 import {
   AgendarSchema,
   BuscarPorDataSchema,
@@ -35,11 +40,13 @@ export function makeMeetingsMcpServer() {
       description: "Cria uma nova reunião",
       inputSchema: AgendarSchema.shape,
     },
-    async (args: AgendarInput, extra) => {  // Adicionando o parâmetro extra
+    async (args: AgendarInput) => {  // o parâmetro extra não é necessário aqui
       try {
         const clienteNumero = normalizePhone(args.clienteNumero);
-        const iso = ensureTZ(args.dataHora);
-        const dataHora = ensureFutureISO(iso);
+
+        // ⬇️ CHANGED: normaliza p/ formato aceito pelo backend e valida futuro
+        const localFmt = toBackendLocalDateTime(args.dataHora);
+        const dataHora = ensureFutureLocal(localFmt);
 
         const body = JSON.stringify({ ...args, clienteNumero, dataHora });
         const resp = await http(`${BASE}`, {
@@ -47,24 +54,13 @@ export function makeMeetingsMcpServer() {
           headers: { "Content-Type": "application/json" },
           body,
         });
-        
-        // Retorno no formato esperado pelo MCP
+
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(resp)
-            }
-          ]
+          content: [{ type: "text", text: JSON.stringify(resp) }]
         };
       } catch (e: any) {
         return {
-          content: [
-            {
-              type: "text",
-              text: e?.message ?? "Erro ao agendar."
-            }
-          ]
+          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao agendar."}` }]
         };
       }
     }
@@ -78,25 +74,15 @@ export function makeMeetingsMcpServer() {
       description: "Lista reuniões de um dia (YYYY-MM-DD)",
       inputSchema: BuscarPorDataSchema.shape,
     },
-    async (args: BuscarPorDataInput, extra) => {
+    async (args: BuscarPorDataInput) => {
       try {
         const resp = await http(`${BASE}/?day=${encodeURIComponent(args.day)}`, { method: "GET" });
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(resp)
-            }
-          ]
+          content: [{ type: "text", text: JSON.stringify(resp) }]
         };
       } catch (e: any) {
         return {
-          content: [
-            {
-              type: "text",
-              text: e?.message ?? "Erro ao buscar por data."
-            }
-          ]
+          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao buscar por data."}` }]
         };
       }
     }
@@ -110,27 +96,17 @@ export function makeMeetingsMcpServer() {
       description: "Lista reuniões entre start e end (YYYY-MM-DD)",
       inputSchema: BuscarPorPeriodoSchema.shape,
     },
-    async (args: BuscarPorPeriodoInput, extra) => {
+    async (args: BuscarPorPeriodoInput) => {
       try {
         if (args.start > args.end) throw new Error("Intervalo inválido: start > end.");
         const url = `${BASE}/?start=${encodeURIComponent(args.start)}&end=${encodeURIComponent(args.end)}`;
         const resp = await http(url, { method: "GET" });
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(resp)
-            }
-          ]
+          content: [{ type: "text", text: JSON.stringify(resp) }]
         };
       } catch (e: any) {
         return {
-          content: [
-            {
-              type: "text",
-              text: e?.message ?? "Erro ao buscar por período."
-            }
-          ]
+          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao buscar por período."}` }]
         };
       }
     }
@@ -144,32 +120,25 @@ export function makeMeetingsMcpServer() {
       description: "Altera data/hora de uma reunião existente",
       inputSchema: AlterarDataSchema.shape,
     },
-    async (args: AlterarDataInput, extra) => {
+    async (args: AlterarDataInput) => {
       try {
-        const iso = ensureTZ(args.novaDataHora);
-        const normal = ensureFutureISO(iso);
+        // ⬇️ CHANGED: normaliza p/ formato aceito pelo backend e valida futuro
+        const localFmt = toBackendLocalDateTime(args.novaDataHora);
+        const normal = ensureFutureLocal(localFmt);
+
         const body = JSON.stringify({ novaDataHora: normal });
         const resp = await http(`${BASE}/${encodeURIComponent(args.id)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body,
         });
+
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(resp)
-            }
-          ]
+          content: [{ type: "text", text: JSON.stringify(resp) }]
         };
       } catch (e: any) {
         return {
-          content: [
-            {
-              type: "text",
-              text: e?.message ?? "Erro ao alterar data."
-            }
-          ]
+          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao alterar data."}` }]
         };
       }
     }
@@ -183,25 +152,15 @@ export function makeMeetingsMcpServer() {
       description: "Remove uma reunião pelo ID",
       inputSchema: DeletarSchema.shape,
     },
-    async (args: DeletarInput, extra) => {
+    async (args: DeletarInput) => {
       try {
         const resp = await http(`${BASE}/${encodeURIComponent(args.id)}`, { method: "DELETE" });
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(resp)
-            }
-          ]
+          content: [{ type: "text", text: JSON.stringify(resp) }]
         };
       } catch (e: any) {
         return {
-          content: [
-            {
-              type: "text",
-              text: e?.message ?? "Erro ao deletar."
-            }
-          ]
+          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao deletar."}` }]
         };
       }
     }
