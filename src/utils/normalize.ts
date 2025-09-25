@@ -1,51 +1,41 @@
-/** Mantém apenas dígitos e valida tamanho */
-export function normalizePhone(num: string) {
-  const only = num.replace(/\D/g, "");
-  if (only.length < 10 || only.length > 15) {
-    throw new Error("Telefone inválido (use DDI+DDD+Número, apenas dígitos).");
+// utils/normalize.ts
+const ISO_BR_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-03:00$/;
+
+export function normalizePhone(input: string): string {
+  const digits = (input || "").replace(/\D+/g, "");
+  if (!digits) throw new Error("clienteNumero inválido");
+  // Prefixa 55 se não houver DDI
+  const withDDI = digits.startsWith("55") ? digits : `55${digits}`;
+  if (withDDI.length < 10 || withDDI.length > 15) {
+    throw new Error("clienteNumero fora do padrão E.164 (10-15 dígitos após +)");
   }
-  return only;
+  return withDDI;
 }
 
-/**
- * Normaliza uma string para o formato aceito pelo backend:
- * YYYY-MM-DDTHH:mm:ss (sem timezone, sem 'Z').
- */
-export function toBackendLocalDateTime(input: string) {
-  let s = String(input).trim();
-
-  // troca espaço por "T"
-  s = s.replace(" ", "T");
-
-  // remove milissegundos, se houver
-  s = s.replace(/\.\d+/, "");
-
-  // completa segundos se vier só até minutos
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) {
-    s += ":00";
+/** Garante exatamente "YYYY-MM-DDTHH:mm:ss-03:00" */
+export function ensureISO_BR_Offset(s: string): string {
+  if (!ISO_BR_REGEX.test(s)) {
+    throw new Error('Data/hora deve estar em "YYYY-MM-DDTHH:mm:ss-03:00"');
   }
-
-  // remove timezone (Z ou ±HH:MM)
-  s = s.replace(/([+-]\d{2}:\d{2}|Z)$/i, "");
-
-  // valida formato final
-  const ok = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(s);
-  if (!ok) {
-    throw new Error("Data/hora inválida (esperado YYYY-MM-DDTHH:mm:ss)");
+  // Testa parseabilidade
+  const d = new Date(s);
+  if (isNaN(d.getTime())) {
+    throw new Error("Data/hora inválida");
   }
-
+  // Mantém string original (sem mexer em offset/hora)
   return s;
 }
 
-/**
- * Garante que a data/hora (interpretada como local) é futura e <= 90 dias.
- */
-export function ensureFutureLocal(localYmdHms: string) {
-  const d = new Date(localYmdHms); // Node interpreta como horário local
+/** Verifica se a data/hora (com -03:00) é futura em relação a agora */
+export function ensureFutureLocalBR(s: string): string {
+  const d = new Date(s); // -03:00 respeitado
   if (isNaN(d.getTime())) throw new Error("Data/hora inválida");
-  const now = Date.now();
-  const max = now + 90 * 24 * 60 * 60 * 1000;
-  if (d.getTime() < now) throw new Error("A data/hora precisa ser futura.");
-  if (d.getTime() > max) throw new Error("A data/hora não pode passar de 90 dias.");
-  return localYmdHms;
+  if (d.getTime() <= Date.now()) {
+    throw new Error("Parece que a data/hora já passou; envie um horário futuro.");
+  }
+  return s;
 }
+
+// Se ainda referenciar essas em algum lugar, mantenha como no-ops/aliases:
+export const ensureSeconds = (s: string) => s;
+export const hasTZ = (s: string) => /[zZ]|[+\-]\d{2}:\d{2}$/.test(s);
