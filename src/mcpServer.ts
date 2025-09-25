@@ -97,33 +97,49 @@ export function makeMeetingsMcpServer() {
   );
 
   // Buscar por período
-  server.registerTool(
-    "buscarPorPeriodo",
-    {
-      title: "Buscar por período",
-      description: "Lista reuniões entre start e end (ISO com offset ou Z)",
-      inputSchema: BuscarPorPeriodoSchema.shape,
-    },
-    async (args: BuscarPorPeriodoInput) => {
-      console.log("[MCP] buscarPorPeriodo input:", args);
-      try {
-        const startISO = toBackendISODateTime(args.start);
-        const endISO   = toBackendISODateTime(args.end);
+  // Buscar por período
+server.registerTool(
+  "buscarPorPeriodo",
+  {
+    title: "Buscar por período",
+    description: "Lista reuniões entre start e end (ISO completo com offset)",
+    inputSchema: BuscarPorPeriodoSchema.shape, // mantém Zod
+  },
+  async (args: BuscarPorPeriodoInput) => {
+    console.log("[MCP] buscarPorPeriodo input:", args);
 
-        if (new Date(startISO).getTime() > new Date(endISO).getTime()) {
-          throw new Error("Intervalo inválido: start > end.");
-        }
-
-        const url = `${BASE}/?start=${encodeURIComponent(startISO)}&end=${encodeURIComponent(endISO)}`;
-        const resp = await http(url, { method: "GET" });
-        console.log("[MCP] buscarPorPeriodo resp:", resp);
-        return { content: [{ type: "text", text: JSON.stringify(resp) }] };
-      } catch (e: any) {
-        console.error("[MCP] buscarPorPeriodo erro:", e?.message, e?.response?.data);
-        return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao buscar por período."}` }] };
+    // helper local: expande YYYY-MM-DD para limites do dia em -03:00
+    const expandIfDateOnly = (raw: string, which: "start" | "end") => {
+      const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+      if (dateOnly) {
+        const suffix = which === "start" ? "T00:00:00-03:00" : "T23:59:59-03:00";
+        return `${raw}${suffix}`;
       }
+      return raw; // já veio ISO; mantém
+    };
+
+    try {
+      // 1) Expande (se vier YYYY-MM-DD) e normaliza p/ ISO com offset/segundos
+      const startISO = toBackendISODateTime(expandIfDateOnly(args.start, "start"));
+      const endISO   = toBackendISODateTime(expandIfDateOnly(args.end,   "end"));
+
+      // 2) Validação de ordem
+      if (new Date(startISO).getTime() > new Date(endISO).getTime()) {
+        throw new Error("Intervalo inválido: start > end.");
+      }
+
+      // 3) Chamada real
+      const url = `${BASE}/?start=${encodeURIComponent(startISO)}&end=${encodeURIComponent(endISO)}`;
+      const resp = await http(url, { method: "GET" });
+
+      console.log("[MCP] buscarPorPeriodo resp:", resp);
+      return { content: [{ type: "text", text: JSON.stringify(resp) }] };
+    } catch (e: any) {
+      console.error("[MCP] buscarPorPeriodo erro:", e?.message, e?.response?.data);
+      return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao buscar por período."}` }] };
     }
-  );
+  }
+);
 
   // Alterar data/hora
   server.registerTool(
