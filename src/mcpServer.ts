@@ -1,15 +1,19 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-function toOk(result: any) { return { ok: true, result }; }
-function toErr(error: any) { return { ok: false, error }; }
+
+// Define toOk and toErr locally if not provided by the SDK
+function toOk(result: any) {
+  return { ok: true, result };
+}
+function toErr(error: any) {
+  return { ok: false, error };
+}
 
 import { BASE } from "./config";
 import { http } from "./utils/http";
 
-import {
-  normalizePhone,
-  ensureISO_BR_Offset,
-  ensureFutureLocalBR,
-} from "./utils/normalize";
+// ⬇️ CHANGED: troque os imports de ensureTZ/ensureFutureISO
+// import { ensureFutureISO, ensureTZ, normalizePhone } from "./utils/normalize";
+import { toBackendLocalDateTime, ensureFutureLocal, normalizePhone } from "./utils/normalize";
 
 import {
   AgendarSchema,
@@ -24,6 +28,7 @@ import {
   type DeletarInput,
 } from "./schemas";
 
+/** Cria e configura um MCP Server com as 5 tools */
 export function makeMeetingsMcpServer() {
   const server = new McpServer({ name: "meetings-mcp-server", version: "1.0.0" });
 
@@ -35,12 +40,13 @@ export function makeMeetingsMcpServer() {
       description: "Cria uma nova reunião",
       inputSchema: AgendarSchema.shape,
     },
-    async (args: AgendarInput) => {
+    async (args: AgendarInput) => {  // o parâmetro extra não é necessário aqui
       try {
         const clienteNumero = normalizePhone(args.clienteNumero);
 
-        // Agora exigimos e garantimos EXATAMENTE "YYYY-MM-DDTHH:mm:ss-03:00"
-        const dataHora = ensureFutureLocalBR(ensureISO_BR_Offset(args.dataHora));
+        // ⬇️ CHANGED: normaliza p/ formato aceito pelo backend e valida futuro
+        const localFmt = toBackendLocalDateTime(args.dataHora);
+        const dataHora = ensureFutureLocal(localFmt);
 
         const body = JSON.stringify({ ...args, clienteNumero, dataHora });
         const resp = await http(`${BASE}`, {
@@ -49,9 +55,13 @@ export function makeMeetingsMcpServer() {
           body,
         });
 
-        return { content: [{ type: "text", text: JSON.stringify(resp) }] };
+        return {
+          content: [{ type: "text", text: JSON.stringify(resp) }]
+        };
       } catch (e: any) {
-        return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao agendar."}` }] };
+        return {
+          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao agendar."}` }]
+        };
       }
     }
   );
@@ -67,9 +77,13 @@ export function makeMeetingsMcpServer() {
     async (args: BuscarPorDataInput) => {
       try {
         const resp = await http(`${BASE}/?day=${encodeURIComponent(args.day)}`, { method: "GET" });
-        return { content: [{ type: "text", text: JSON.stringify(resp) }] };
+        return {
+          content: [{ type: "text", text: JSON.stringify(resp) }]
+        };
       } catch (e: any) {
-        return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao buscar por data."}` }] };
+        return {
+          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao buscar por data."}` }]
+        };
       }
     }
   );
@@ -87,9 +101,13 @@ export function makeMeetingsMcpServer() {
         if (args.start > args.end) throw new Error("Intervalo inválido: start > end.");
         const url = `${BASE}/?start=${encodeURIComponent(args.start)}&end=${encodeURIComponent(args.end)}`;
         const resp = await http(url, { method: "GET" });
-        return { content: [{ type: "text", text: JSON.stringify(resp) }] };
+        return {
+          content: [{ type: "text", text: JSON.stringify(resp) }]
+        };
       } catch (e: any) {
-        return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao buscar por período."}` }] };
+        return {
+          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao buscar por período."}` }]
+        };
       }
     }
   );
@@ -104,19 +122,24 @@ export function makeMeetingsMcpServer() {
     },
     async (args: AlterarDataInput) => {
       try {
-        // Também exigimos -03:00 aqui
-        const novaDataHora = ensureFutureLocalBR(ensureISO_BR_Offset(args.novaDataHora));
+        // ⬇️ CHANGED: normaliza p/ formato aceito pelo backend e valida futuro
+        const localFmt = toBackendLocalDateTime(args.novaDataHora);
+        const normal = ensureFutureLocal(localFmt);
 
-        const body = JSON.stringify({ novaDataHora });
+        const body = JSON.stringify({ novaDataHora: normal });
         const resp = await http(`${BASE}/${encodeURIComponent(args.id)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body,
         });
 
-        return { content: [{ type: "text", text: JSON.stringify(resp) }] };
+        return {
+          content: [{ type: "text", text: JSON.stringify(resp) }]
+        };
       } catch (e: any) {
-        return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao alterar data."}` }] };
+        return {
+          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao alterar data."}` }]
+        };
       }
     }
   );
@@ -132,9 +155,13 @@ export function makeMeetingsMcpServer() {
     async (args: DeletarInput) => {
       try {
         const resp = await http(`${BASE}/${encodeURIComponent(args.id)}`, { method: "DELETE" });
-        return { content: [{ type: "text", text: JSON.stringify(resp) }] };
+        return {
+          content: [{ type: "text", text: JSON.stringify(resp) }]
+        };
       } catch (e: any) {
-        return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao deletar."}` }] };
+        return {
+          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao deletar."}` }]
+        };
       }
     }
   );
