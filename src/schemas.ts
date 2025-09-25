@@ -23,8 +23,8 @@ export const BuscarPorDataSchema = z.object({
 });
 
 export const BuscarPorPeriodoSchema = z.object({
-  start: DateTimeISO,
-  end: DateTimeISO,
+  start: z.string().datetime({ offset: true }), // Exemplo de tipo complexo
+  end: z.string().datetime({ offset: true }),
 });
 
 export const AlterarDataSchema = z.object({

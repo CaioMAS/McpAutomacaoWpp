@@ -96,7 +96,7 @@ export function makeMeetingsMcpServer() {
     }
   );
 
-  // Buscar por período
+
   // Buscar por período
 server.registerTool(
   "buscarPorPeriodo",
