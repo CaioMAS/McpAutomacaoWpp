@@ -1,29 +1,35 @@
 import { z } from "zod";
 
-const DateTimeLocal = z
+// Aceita: 2025-09-25T19:00:00Z  ou  2025-09-25T19:00:00-03:00
+const DateTimeISO = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/, "Use YYYY-MM-DDTHH:mm:ss");
+  .regex(
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})$/,
+    "Use formato ISO: YYYY-MM-DDTHH:mm:ssZ ou YYYY-MM-DDTHH:mm:ss-03:00"
+  );
 
 export const AgendarSchema = z.object({
   clienteNome: z.string().min(1, "clienteNome obrigatório"),
-  clienteNumero: z.string().regex(/^\+?\d{10,15}$/, "clienteNumero E.164 (ex: 5531987654321)"),
-  dataHora: DateTimeLocal,
+  clienteNumero: z
+    .string()
+    .regex(/^\+?\d{10,15}$/, "clienteNumero E.164 (ex: 5531987654321)"),
+  dataHora: DateTimeISO,
   chefeNome: z.string().default("Ezequias"),
   cidadeOpcional: z.string().optional(),
 });
 
 export const BuscarPorDataSchema = z.object({
-  day: DateTimeLocal,
+  day: DateTimeISO,
 });
 
 export const BuscarPorPeriodoSchema = z.object({
-  start: DateTimeLocal,
-  end: DateTimeLocal,
+  start: DateTimeISO,
+  end: DateTimeISO,
 });
 
 export const AlterarDataSchema = z.object({
   id: z.string().min(1, "id obrigatório"),
-  novaDataHora: DateTimeLocal,
+  novaDataHora: DateTimeISO,
 });
 
 export const DeletarSchema = z.object({

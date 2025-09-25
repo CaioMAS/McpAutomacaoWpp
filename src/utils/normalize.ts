@@ -11,7 +11,7 @@ export function normalizePhone(num: string) {
  * Normaliza uma string para o formato aceito pelo backend:
  * YYYY-MM-DDTHH:mm:ss (sem timezone, sem 'Z').
  */
-export function toBackendLocalDateTime(input: string) {
+export function toBackendISODateTime(input: string) {
   let s = String(input).trim();
 
   // troca espaço por "T"
@@ -21,17 +21,16 @@ export function toBackendLocalDateTime(input: string) {
   s = s.replace(/\.\d+/, "");
 
   // completa segundos se vier só até minutos
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) {
-    s += ":00";
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}([+-]\d{2}:\d{2}|Z)?$/.test(s)) {
+    s = s.replace(/([+-]\d{2}:\d{2}|Z)?$/, ":00$1");
   }
 
-  // remove timezone (Z ou ±HH:MM)
-  s = s.replace(/([+-]\d{2}:\d{2}|Z)$/i, "");
-
-  // valida formato final
-  const ok = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(s);
+  // valida formato ISO final
+  const ok = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})$/.test(s);
   if (!ok) {
-    throw new Error("Data/hora inválida (esperado YYYY-MM-DDTHH:mm:ss)");
+    throw new Error(
+      "Data/hora inválida (esperado ISO YYYY-MM-DDTHH:mm:ssZ ou YYYY-MM-DDTHH:mm:ss±HH:MM)"
+    );
   }
 
   return s;
@@ -40,12 +39,12 @@ export function toBackendLocalDateTime(input: string) {
 /**
  * Garante que a data/hora (interpretada como local) é futura e <= 90 dias.
  */
-export function ensureFutureLocal(localYmdHms: string) {
-  const d = new Date(localYmdHms); // Node interpreta como horário local
+export function ensureFutureISO(isoDateTime: string) {
+  const d = new Date(isoDateTime); // Node entende o offset/Z corretamente
   if (isNaN(d.getTime())) throw new Error("Data/hora inválida");
   const now = Date.now();
   const max = now + 90 * 24 * 60 * 60 * 1000;
   if (d.getTime() < now) throw new Error("A data/hora precisa ser futura.");
   if (d.getTime() > max) throw new Error("A data/hora não pode passar de 90 dias.");
-  return localYmdHms;
+  return isoDateTime;
 }

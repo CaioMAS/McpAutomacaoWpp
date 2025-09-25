@@ -11,9 +11,8 @@ function toErr(error: any) {
 import { BASE } from "./config";
 import { http } from "./utils/http";
 
-// ⬇️ CHANGED: troque os imports de ensureTZ/ensureFutureISO
-// import { ensureFutureISO, ensureTZ, normalizePhone } from "./utils/normalize";
-import { toBackendLocalDateTime, ensureFutureLocal, normalizePhone } from "./utils/normalize";
+// ⬇️ Agora usamos ISO com offset/Z
+import { toBackendISODateTime, ensureFutureISO, normalizePhone } from "./utils/normalize";
 
 import {
   AgendarSchema,
@@ -28,6 +27,16 @@ import {
   type DeletarInput,
 } from "./schemas";
 
+/** Util: garante "YYYY-MM-DD" a partir de ISO ou já-YYYY-MM-DD */
+function toDayParam(s: string) {
+  const trimmed = String(s).trim();
+  // Se já vier só a data
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  // Se vier ISO com ou sem segundos (aqui garantimos segundos via toBackendISODateTime)
+  const iso = toBackendISODateTime(trimmed);
+  return iso.slice(0, 10); // YYYY-MM-DD
+}
+
 /** Cria e configura um MCP Server com as 5 tools */
 export function makeMeetingsMcpServer() {
   const server = new McpServer({ name: "meetings-mcp-server", version: "1.0.0" });
@@ -40,28 +49,27 @@ export function makeMeetingsMcpServer() {
       description: "Cria uma nova reunião",
       inputSchema: AgendarSchema.shape,
     },
-    async (args: AgendarInput) => {  // o parâmetro extra não é necessário aqui
+    async (args: AgendarInput) => {
+      console.log("[MCP] agendar input:", args);
       try {
         const clienteNumero = normalizePhone(args.clienteNumero);
 
-        // ⬇️ CHANGED: normaliza p/ formato aceito pelo backend e valida futuro
-        const localFmt = toBackendLocalDateTime(args.dataHora);
-        const dataHora = ensureFutureLocal(localFmt);
+        // Normaliza p/ ISO com offset e valida futuro
+        const dataHoraISO = toBackendISODateTime(args.dataHora);
+        ensureFutureISO(dataHoraISO);
 
-        const body = JSON.stringify({ ...args, clienteNumero, dataHora });
+        const body = JSON.stringify({ ...args, clienteNumero, dataHora: dataHoraISO });
         const resp = await http(`${BASE}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body,
         });
 
-        return {
-          content: [{ type: "text", text: JSON.stringify(resp) }]
-        };
+        console.log("[MCP] agendar resp:", resp);
+        return { content: [{ type: "text", text: JSON.stringify(resp) }] };
       } catch (e: any) {
-        return {
-          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao agendar."}` }]
-        };
+        console.error("[MCP] agendar erro:", e?.message, e?.response?.data);
+        return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao agendar."}` }] };
       }
     }
   );
@@ -71,19 +79,19 @@ export function makeMeetingsMcpServer() {
     "buscarPorData",
     {
       title: "Buscar por data",
-      description: "Lista reuniões de um dia (YYYY-MM-DD)",
+      description: "Lista reuniões de um dia (YYYY-MM-DD ou ISO com offset)",
       inputSchema: BuscarPorDataSchema.shape,
     },
     async (args: BuscarPorDataInput) => {
+      console.log("[MCP] buscarPorData input:", args);
       try {
-        const resp = await http(`${BASE}/?day=${encodeURIComponent(args.day)}`, { method: "GET" });
-        return {
-          content: [{ type: "text", text: JSON.stringify(resp) }]
-        };
+        const day = toDayParam(args.day);
+        const resp = await http(`${BASE}/?day=${encodeURIComponent(day)}`, { method: "GET" });
+        console.log("[MCP] buscarPorData resp:", resp);
+        return { content: [{ type: "text", text: JSON.stringify(resp) }] };
       } catch (e: any) {
-        return {
-          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao buscar por data."}` }]
-        };
+        console.error("[MCP] buscarPorData erro:", e?.message, e?.response?.data);
+        return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao buscar por data."}` }] };
       }
     }
   );
@@ -93,21 +101,26 @@ export function makeMeetingsMcpServer() {
     "buscarPorPeriodo",
     {
       title: "Buscar por período",
-      description: "Lista reuniões entre start e end (YYYY-MM-DD)",
+      description: "Lista reuniões entre start e end (ISO com offset ou Z)",
       inputSchema: BuscarPorPeriodoSchema.shape,
     },
     async (args: BuscarPorPeriodoInput) => {
+      console.log("[MCP] buscarPorPeriodo input:", args);
       try {
-        if (args.start > args.end) throw new Error("Intervalo inválido: start > end.");
-        const url = `${BASE}/?start=${encodeURIComponent(args.start)}&end=${encodeURIComponent(args.end)}`;
+        const startISO = toBackendISODateTime(args.start);
+        const endISO   = toBackendISODateTime(args.end);
+
+        if (new Date(startISO).getTime() > new Date(endISO).getTime()) {
+          throw new Error("Intervalo inválido: start > end.");
+        }
+
+        const url = `${BASE}/?start=${encodeURIComponent(startISO)}&end=${encodeURIComponent(endISO)}`;
         const resp = await http(url, { method: "GET" });
-        return {
-          content: [{ type: "text", text: JSON.stringify(resp) }]
-        };
+        console.log("[MCP] buscarPorPeriodo resp:", resp);
+        return { content: [{ type: "text", text: JSON.stringify(resp) }] };
       } catch (e: any) {
-        return {
-          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao buscar por período."}` }]
-        };
+        console.error("[MCP] buscarPorPeriodo erro:", e?.message, e?.response?.data);
+        return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao buscar por período."}` }] };
       }
     }
   );
@@ -121,25 +134,23 @@ export function makeMeetingsMcpServer() {
       inputSchema: AlterarDataSchema.shape,
     },
     async (args: AlterarDataInput) => {
+      console.log("[MCP] alterarData input:", args);
       try {
-        // ⬇️ CHANGED: normaliza p/ formato aceito pelo backend e valida futuro
-        const localFmt = toBackendLocalDateTime(args.novaDataHora);
-        const normal = ensureFutureLocal(localFmt);
+        const novaISO = toBackendISODateTime(args.novaDataHora);
+        ensureFutureISO(novaISO);
 
-        const body = JSON.stringify({ novaDataHora: normal });
+        const body = JSON.stringify({ novaDataHora: novaISO });
         const resp = await http(`${BASE}/${encodeURIComponent(args.id)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body,
         });
 
-        return {
-          content: [{ type: "text", text: JSON.stringify(resp) }]
-        };
+        console.log("[MCP] alterarData resp:", resp);
+        return { content: [{ type: "text", text: JSON.stringify(resp) }] };
       } catch (e: any) {
-        return {
-          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao alterar data."}` }]
-        };
+        console.error("[MCP] alterarData erro:", e?.message, e?.response?.data);
+        return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao alterar data."}` }] };
       }
     }
   );
@@ -153,15 +164,14 @@ export function makeMeetingsMcpServer() {
       inputSchema: DeletarSchema.shape,
     },
     async (args: DeletarInput) => {
+      console.log("[MCP] deletar input:", args);
       try {
         const resp = await http(`${BASE}/${encodeURIComponent(args.id)}`, { method: "DELETE" });
-        return {
-          content: [{ type: "text", text: JSON.stringify(resp) }]
-        };
+        console.log("[MCP] deletar resp:", resp);
+        return { content: [{ type: "text", text: JSON.stringify(resp) }] };
       } catch (e: any) {
-        return {
-          content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao deletar."}` }]
-        };
+        console.error("[MCP] deletar erro:", e?.message, e?.response?.data);
+        return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao deletar."}` }] };
       }
     }
   );
