@@ -1,4 +1,5 @@
 // utils/normalize.ts
+
 const ISO_BR_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-03:00$/;
 
 export function normalizePhone(input: string): string {
@@ -22,20 +23,26 @@ export function ensureISO_BR_Offset(s: string): string {
   if (isNaN(d.getTime())) {
     throw new Error("Data/hora inválida");
   }
-  // Mantém string original (sem mexer em offset/hora)
   return s;
 }
 
-/** Verifica se a data/hora (com -03:00) é futura em relação a agora */
+/** Verifica se a data/hora (com -03:00) é futura em relação a agora (fuso America/Sao_Paulo) */
 export function ensureFutureLocalBR(s: string): string {
   const d = new Date(s); // -03:00 respeitado
   if (isNaN(d.getTime())) throw new Error("Data/hora inválida");
-  if (d.getTime() <= Date.now()) {
+
+  // calcula "agora" também no fuso -03:00
+  const nowUtc = new Date();
+  // converte "agora" UTC para America/Sao_Paulo (fixo -03:00)
+  const nowLocalMs = nowUtc.getTime() - 3 * 60 * 60 * 1000;
+  const nowLocal = new Date(nowLocalMs);
+
+  if (d.getTime() <= nowLocal.getTime()) {
     throw new Error("Parece que a data/hora já passou; envie um horário futuro.");
   }
   return s;
 }
 
-// Se ainda referenciar essas em algum lugar, mantenha como no-ops/aliases:
+// compatibilidade: se ainda forem usados em outros pontos
 export const ensureSeconds = (s: string) => s;
 export const hasTZ = (s: string) => /[zZ]|[+\-]\d{2}:\d{2}$/.test(s);
