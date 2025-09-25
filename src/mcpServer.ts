@@ -100,10 +100,10 @@ export function makeMeetingsMcpServer() {
   // Buscar por período
 server.registerTool(
   "buscarPorPeriodo",
-  {
+   {
     title: "Buscar por período",
     description: "Lista reuniões entre start e end (ISO completo com offset)",
-    inputSchema: BuscarPorPeriodoSchema.shape, // mantém Zod
+    inputSchema: BuscarPorPeriodoSchema.shape,
   },
   async (args: BuscarPorPeriodoInput) => {
     console.log("[MCP] buscarPorPeriodo input:", args);
