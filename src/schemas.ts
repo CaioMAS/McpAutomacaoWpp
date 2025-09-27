@@ -21,17 +21,17 @@ const OptStr = z.string().trim().min(1).optional();
 export const AgendarSchema = z.object({
   clienteNome: z.string().trim().min(1, "clienteNome obrigatório"),
   clienteNumero: PhoneE164Digits,
-  dataHora: DateTimeISO, // 🔴 só aceita ISO com offset explícito
-  chefeNome: z.string().trim().default("Ezequias"),
+  dataHora: DateTimeISO,
+  // ❌ não use .default() aqui — quebre o bug do mapper
+  chefeNome: z.string().trim().optional(),
   cidadeOpcional: OptStr,
   empresaNome: OptStr,
   endereco: OptStr,
   referidoPor: OptStr,
-  funcionarios: z
-    .number({ invalid_type_error: "funcionarios deve ser número" })
-    .int("funcionarios deve ser inteiro")
-    .min(0, "funcionarios não pode ser negativo")
-    .optional(),
+  funcionarios: z.number({ invalid_type_error: "funcionarios deve ser número" })
+                 .int("funcionarios deve ser inteiro")
+                 .min(0, "funcionarios não pode ser negativo")
+                 .optional(),
   faturamento: OptStr,
   observacoes: OptStr,
   instagram: OptStr,

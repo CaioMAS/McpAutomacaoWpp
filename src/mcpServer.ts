@@ -43,36 +43,45 @@ export function makeMeetingsMcpServer() {
 
   // Agendar
   server.registerTool(
-    "agendar",
-    {
-      title: "Agendar reunião",
-      description: "Cria uma nova reunião",
-      inputSchema: AgendarSchema.shape,
-    },
-    async (args: AgendarInput) => {
-      console.log("[MCP] agendar input:", args);
-      try {
-        const clienteNumero = normalizePhone(args.clienteNumero);
+  "agendar",
+  {
+    title: "Agendar reunião",
+    description: "Cria uma nova reunião",
+    inputSchema: AgendarSchema.shape, // ✅ não use .shape
+  },
+  async (raw: unknown) => {
+    console.log("[MCP] agendar input (raw):", raw);
+    try {
+      // 1) valida e normaliza via Zod (telefone já validado; não inventar/transformar)
+      const args = AgendarSchema.parse(raw) as AgendarInput;
 
-        // Normaliza p/ ISO com offset e valida futuro
-        const dataHoraISO = toBackendISODateTime(args.dataHora);
-        ensureFutureISO(dataHoraISO);
+      // 2) exige offset explícito (proíbe Z)
+      ensureOffsetFormat(args.dataHora);
 
-        const body = JSON.stringify({ ...args, clienteNumero, dataHora: dataHoraISO });
-        const resp = await http(`${BASE}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body,
-        });
+      // 3) garante que é futuro no TZ configurado (sem converter para UTC)
+      ensureFutureLocalBR(args.dataHora);
 
-        console.log("[MCP] agendar resp:", resp);
-        return { content: [{ type: "text", text: JSON.stringify(resp) }] };
-      } catch (e: any) {
-        console.error("[MCP] agendar erro:", e?.message, e?.response?.data);
-        return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao agendar."}` }] };
-      }
+      // 4) aplica default de chefeNome aqui (evita ZodDefault no schema)
+      const payload = {
+        ...args,
+        chefeNome: (args.chefeNome?.trim() || "Ezequias"),
+      };
+
+      // 5) envia exatamente o que foi validado (sem toBackendISODateTime / sem normalizePhone)
+      const resp = await http(`${BASE}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      console.log("[MCP] agendar resp:", resp);
+      return { content: [{ type: "text", text: JSON.stringify(resp) }] };
+    } catch (e: any) {
+      console.error("[MCP] agendar erro:", e?.message, e?.response?.data);
+      return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao agendar."}` }] };
     }
-  );
+  }
+);
 
   // Buscar por data
   server.registerTool(
@@ -194,3 +203,11 @@ server.registerTool(
 
   return server;
 }
+function ensureOffsetFormat(dataHora: string) {
+  throw new Error("Function not implemented.");
+}
+
+function ensureFutureLocalBR(dataHora: string) {
+  throw new Error("Function not implemented.");
+}
+
