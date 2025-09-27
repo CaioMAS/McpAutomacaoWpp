@@ -10,11 +10,11 @@ const DateTimeISO = z
 
   const PhoneE164Digits = z
   .string()
-  .regex(/^\+?\d{10,15}$/, "clienteNumero E.164 (ex: 5531987654321)")
-  .transform((s) => s.replace(/\D/g, ""))
-  .refine((s) => /^\d{10,15}$/.test(s), {
-    message: "clienteNumero deve conter 10 a 15 dígitos após normalização",
-  });
+  .regex(
+     /^\+?\d{10,15}$/, 
+     "clienteNumero deve ser E.164 (ex: +5531987654321)"
+  )
+  
 
 const OptStr = z.string().trim().min(1).optional();
 
