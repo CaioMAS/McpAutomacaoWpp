@@ -16,14 +16,14 @@ export const AgendarSchema = z.object({
     .regex(/^\+?\d{10,15}$/, "clienteNumero E.164 (ex: 5531987654321)"),
   dataHora: DateTimeISO, // 🔴 só aceita ISO com offset explícito
   chefeNome: z.string().default("Ezequias"),
-  cidadeOpcional: string().optional(),
-  empresaNome: string().optional(),
-  endereco: string().optional(),
-  referidoPor: string().optional(),
-  funcionarios: string().optional(),
-  faturamento: string().optional(),
-  observacoes: string().optional(),
-  instagram: string().optional(),
+  cidadeOpcional: z.string().optional(),
+  empresaNome: z.string().optional(),
+  endereco: z.string().optional(),
+  referidoPor: z.string().optional(),
+  funcionarios: z.string().optional(),
+  faturamento: z.string().optional(),
+  observacoes: z.string().optional(),
+  instagram: z.string().optional(),
 });
 
 export const BuscarPorDataSchema = z.object({
