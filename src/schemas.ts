@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { string, z } from "zod";
 
 // Aceita: 2025-09-25T19:00:00Z  ou  2025-09-25T19:00:00-03:00
 const DateTimeISO = z
@@ -8,33 +8,26 @@ const DateTimeISO = z
     "Use formato ISO: YYYY-MM-DDTHH:mm:ssZ ou YYYY-MM-DDTHH:mm:ss-03:00"
   );
 
-  const PhoneE164Digits = z
-  .string()
-  .regex(
-     /^\+?\d{10,15}$/, 
-     "clienteNumero deve ser E.164 (ex: +5531987654321)"
-  )
-  
-
-const OptStr = z.string().trim().min(1).optional();
 
 export const AgendarSchema = z.object({
   clienteNome: z.string().trim().min(1, "clienteNome obrigatório"),
-  clienteNumero: PhoneE164Digits,
-  dataHora: DateTimeISO,
-  // ❌ não use .default() aqui — quebre o bug do mapper
-  chefeNome: z.string().trim().optional(),
-  cidadeOpcional: OptStr,
-  empresaNome: OptStr,
-  endereco: OptStr,
-  referidoPor: OptStr,
-  funcionarios: z.number({ invalid_type_error: "funcionarios deve ser número" })
-                 .int("funcionarios deve ser inteiro")
-                 .min(0, "funcionarios não pode ser negativo")
-                 .optional(),
-  faturamento: OptStr,
-  observacoes: OptStr,
-  instagram: OptStr,
+  clienteNumero: z
+    .string()
+    .regex(/^\+?\d{10,15}$/, "clienteNumero E.164 (ex: 5531987654321)"),
+  dataHora: DateTimeISO, // 🔴 só aceita ISO com offset explícito
+  chefeNome: z.string().default("Ezequias"),
+  cidadeOpcional: string().optional(),
+  empresaNome: string().optional(),
+  endereco: string().optional(),
+  referidoPor: string().optional(),
+  funcionarios: z
+    .number({ invalid_type_error: "funcionarios deve ser número" })
+    .int("funcionarios deve ser inteiro")
+    .min(0, "funcionarios não pode ser negativo")
+    .optional(),
+  faturamento: string().optional(),
+  observacoes: string().optional(),
+  instagram: string().optional(),
 });
 
 export const BuscarPorDataSchema = z.object({
