@@ -10,7 +10,7 @@ const DateTimeISO = z
 
 
 export const AgendarSchema = z.object({
-  clienteNome: z.string().trim().min(1, "clienteNome obrigatório"),
+  clienteNome: z.string().min(1, "clienteNome obrigatório"),
   clienteNumero: z
     .string()
     .regex(/^\+?\d{10,15}$/, "clienteNumero E.164 (ex: 5531987654321)"),
@@ -20,11 +20,7 @@ export const AgendarSchema = z.object({
   empresaNome: string().optional(),
   endereco: string().optional(),
   referidoPor: string().optional(),
-  funcionarios: z
-    .number({ invalid_type_error: "funcionarios deve ser número" })
-    .int("funcionarios deve ser inteiro")
-    .min(0, "funcionarios não pode ser negativo")
-    .optional(),
+  funcionarios: string().optional(),
   faturamento: string().optional(),
   observacoes: string().optional(),
   instagram: string().optional(),
