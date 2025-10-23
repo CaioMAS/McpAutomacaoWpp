@@ -175,14 +175,14 @@ server.registerTool(
   server.registerTool(
     "deletar",
     {
-      title: "Deletar reunião",
-      description: "Remove uma reunião pelo ID",
+      title: "Cancelar reunião (soft delete)",
+      description: "Marca a reunião como CANCELADO, remove telefone da descrição e registra auditoria.",
       inputSchema: DeletarSchema.shape,
     },
     async (args: DeletarInput) => {
       console.log("[MCP] deletar input:", args);
       try {
-        const resp = await http(`${BASE}/${encodeURIComponent(args.id)}`, { method: "DELETE" });
+        const resp = await http(`${BASE}/${encodeURIComponent(args.id)}/soft-delete`, { method: "PATCH" });
         console.log("[MCP] deletar resp:", resp);
         return { content: [{ type: "text", text: JSON.stringify(resp) }] };
       } catch (e: any) {
