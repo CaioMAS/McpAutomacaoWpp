@@ -44,9 +44,16 @@ export const DeletarSchema = z.object({
   id: z.string().min(1, "id obrigatório"),
 });
 
+export const CriarTarefaSchema = z.object({
+  clienteNome: z.string().min(1, "clienteNome obrigatório"),
+  dataHora: DateTimeISO,
+  observacoes: z.string().optional(),
+});
+
 // Tipos inferidos (úteis nos handlers)
 export type AgendarInput = z.infer<typeof AgendarSchema>;
 export type BuscarPorDataInput = z.infer<typeof BuscarPorDataSchema>;
 export type BuscarPorPeriodoInput = z.infer<typeof BuscarPorPeriodoSchema>;
 export type AlterarDataInput = z.infer<typeof AlterarDataSchema>;
 export type DeletarInput = z.infer<typeof DeletarSchema>;
+export type CriarTarefaInput = z.infer<typeof CriarTarefaSchema>;

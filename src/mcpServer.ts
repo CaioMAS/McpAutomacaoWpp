@@ -20,11 +20,13 @@ import {
   BuscarPorPeriodoSchema,
   AlterarDataSchema,
   DeletarSchema,
+  CriarTarefaSchema,
   type AgendarInput,
   type BuscarPorDataInput,
   type BuscarPorPeriodoInput,
   type AlterarDataInput,
   type DeletarInput,
+  CriarTarefaInput,
 } from "./schemas";
 
 /** Util: garante "YYYY-MM-DD" a partir de ISO ou já-YYYY-MM-DD */
@@ -188,6 +190,38 @@ server.registerTool(
       } catch (e: any) {
         console.error("[MCP] deletar erro:", e?.message, e?.response?.data);
         return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao deletar."}` }] };
+      }
+    }
+  );
+
+  // Criar Tarefa
+  server.registerTool(
+    "criarTarefa",
+    {
+      title: "Criar tarefa",
+      description: "Registra uma tarefa simples com clienteNome, dataHora e observacoes.",
+      inputSchema: CriarTarefaSchema.shape,
+    },
+    async (args: CriarTarefaInput) => {
+      console.log("[MCP] criarTarefa input:", args);
+      try {
+        // Normaliza data para ISO com offset
+        const dataHoraISO = toBackendISODateTime(args.dataHora);
+        ensureFutureISO(dataHoraISO);
+
+        const body = JSON.stringify({ ...args, dataHora: dataHoraISO });
+
+        const resp = await http(`${BASE}/tarefa`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+        });
+
+        console.log("[MCP] criarTarefa resp:", resp);
+        return { content: [{ type: "text", text: JSON.stringify(resp) }] };
+      } catch (e: any) {
+        console.error("[MCP] criarTarefa erro:", e?.message, e?.response?.data);
+        return { content: [{ type: "text", text: `❌ ${e?.message ?? "Erro ao criar tarefa."}` }] };
       }
     }
   );
