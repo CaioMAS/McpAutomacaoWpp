@@ -211,7 +211,7 @@ server.registerTool(
 
         const body = JSON.stringify({ ...args, dataHora: dataHoraISO });
 
-        const resp = await http(`${BASE}/tarefa`, {
+        const resp = await http(`${BASE}/tarefas`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body,
